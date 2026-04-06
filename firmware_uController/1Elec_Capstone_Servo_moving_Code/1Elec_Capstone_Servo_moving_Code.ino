@@ -3,7 +3,7 @@
 #include <Adafruit_SSD1306.h>
 #include <RTClib.h>   // For DS1307
 #include <Wire.h>
-Adafruit_PWMServoDriver board1 = Adafruit_PWMServoDriver(0x40);
+Adafruit_PWMServoDriver board1 = Adafruit_PWMServoDriver(0x40);   // initialize board1 as the correct board
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -14,9 +14,16 @@ RTC_DS1307 rtc;
 unsigned long lastDisplayUpdateMs = 0;
 #define SERVOMIN 125  // Minimum pulse length (0 degrees)
 #define SERVOMAX 625  // Maximum pulse length (180 degrees)
-
 int angleToPulse(int ang);
 int readAngle(int servoNumber);
+int channel = 0;
+
+int L_1, L_2, L_3;
+int R_1, R_2, R_3;
+
+
+
+
 void setup() {
   Serial.begin(9600);
   Serial.println("16 channel Servo test!");
@@ -33,7 +40,7 @@ void setup() {
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 0);
-  display.println(F("OLED OK"));
+  display.println(F("NINODUINO BOOTING UP"));
   //display.println(F("RTC: DS1307"));
   display.display();
   delay(400);
@@ -53,13 +60,30 @@ void setup() {
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }*/
   //Set all servos to 0 degrees
-  for(int i=0; i<5; i++) {
+  for(int i=0; i<16; i++) {
   board1.setPWM(i, 0, angleToPulse(90));
   }
   delay(1000);
 }
 
 void loop() {
+  updateTimeDisplayIfDue();   // update clock
+
+  for (int channel = 0; channel <= 7; channel++) {
+    Serial.println(channel);
+    for (int i = 45; i <= 135; i = i+2 ) {
+        board1.setPWM(channel, 0, angleToPulse(i));
+        Serial.println(i);
+        delay(100);
+    }
+    board1.setPWM(channel, 0, 90);
+    delay(50);
+  }
+  for(int i=0; i<16; i++) {
+  board1.setPWM(i, 0, angleToPulse(90));
+  }
+  return;
+  /*
   updateTimeDisplayIfDue();
   // Sweep all servos from 0 to 180 degrees
   for(int angle = 0; angle < 91; angle += 15) {
@@ -75,7 +99,8 @@ void loop() {
       board1.setPWM(i, 0, angleToPulse(angle));
     }
   }
-  updateTimeDisplayIfDue();
+  */
+
   /*for (int i=0; i<3; i++)
   {
     int angle = readAngle(i);
@@ -85,6 +110,11 @@ void loop() {
   Serial.println(F("Done moving servos, starting again\n"));
   */
 }
+
+void run(int channel) {
+  return;
+}
+
 
 int readAngle(int servoNumber)
 {
@@ -133,14 +163,15 @@ int readAngle(int servoNumber)
     Serial.print(servoNumber);
     Serial.print(F("New servos angle: "));
     Serial.println(ang);
+    Serial.println("\n");
     return ang;
   }
 }
 
 int angleToPulse(int ang) {
   int pulse = map(ang, 0, 180, SERVOMIN, SERVOMAX);
-  Serial.print("Angle: "); Serial.print(ang);
-  Serial.print("Pulse: "); Serial.println(pulse);
+  // Serial.print("Angle: "); Serial.print(ang);
+  // Serial.print("Pulse: "); Serial.println(pulse);
   return pulse;
 }
 // ---------------- OLED time display (DS1307) ----------------
@@ -149,7 +180,7 @@ void updateTimeDisplayIfDue() {
   if (nowMs - lastDisplayUpdateMs < 1000) return; // ~1 Hz
   lastDisplayUpdateMs = nowMs;
   display.clearDisplay();
-  display.setCursor(0, 0);
+  display.setCursor(48, 0);
   display.setTextSize(1);
   // Uptime HH:MM:SS
   unsigned long totalSeconds = nowMs / 1000UL;
@@ -157,9 +188,9 @@ void updateTimeDisplayIfDue() {
   unsigned int mm = (totalSeconds / 60UL) % 60;
   unsigned int ss = totalSeconds % 60;
 
-  display.println(F("UPTIME"));
+  display.println(F("TIME"));
   display.setTextSize(2);
-  display.setCursor(0, 18);
+  display.setCursor(16, 22);
 
   char upStr[12];
   snprintf(upStr, sizeof(upStr), "%02u:%02u:%02u", hh, mm, ss);
