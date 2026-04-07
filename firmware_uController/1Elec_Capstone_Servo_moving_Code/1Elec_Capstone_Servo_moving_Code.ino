@@ -3,6 +3,7 @@
 #include <Adafruit_SSD1306.h>
 #include <RTClib.h>   // For DS1307
 #include <Wire.h>
+#include <time.h>
 Adafruit_PWMServoDriver board1 = Adafruit_PWMServoDriver(0x40);   // initialize board1 as the correct board
 
 #define SCREEN_WIDTH 128
@@ -18,16 +19,22 @@ int angleToPulse(int ang);
 int readAngle(int servoNumber);
 int channel = 0;
 
-int L_1, L_2, L_3;
-int R_1, R_2, R_3;
-
-
+int L_1 = 0;
+int L_2 = 1;
+int L_3 = 2;
+int R_1 = 3;
+int R_2 = 4;
+int R_3 = 5;
 
 
 void setup() {
+  // serial init
   Serial.begin(9600);
   Serial.println("16 channel Servo test!");
   Serial.println(F("PCA9685 + Servos + SSD1306 + DS1307 RTC"));
+  pinMode(13, OUTPUT);
+  
+  // set board1 as the master control
   board1.begin();
   board1.setPWMFreq(60); // Servos operate at ~60 Hz
    // OLED init
@@ -36,8 +43,13 @@ void setup() {
     while (true) { delay(10); }
   }
 
+  // rtc
+  rtc.begin();
+  // uncomment below to set the date and time yyyy, mon, day, hour, min, sec
+  // rtc.adjust(DateTime(2026, 4, 7, 5, 50, 0));
+
   display.clearDisplay();
-  display.setTextSize(1);
+  display.setTextSize(1.2);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 0);
   display.println(F("NINODUINO BOOTING UP"));
@@ -69,20 +81,79 @@ void setup() {
 void loop() {
   updateTimeDisplayIfDue();   // update clock
 
-  for (int channel = 0; channel <= 7; channel++) {
-    Serial.println(channel);
-    for (int i = 45; i <= 135; i = i+2 ) {
-        board1.setPWM(channel, 0, angleToPulse(i));
+  //Serial.println(now.second());
+
+  if (Serial.available() > 0) {
+    L_1 = Serial.parseInt(); 
+    L_2 = Serial.parseInt();
+    L_3 = Serial.parseInt();
+    R_1 = Serial.parseInt();
+    R_2 = Serial.parseInt();
+    R_3 = Serial.parseInt();
+    
+    // Clear the remaining newline from buffer
+    while(Serial.available() > 0) Serial.read(); 
+
+    L_1 = invertAngles(L_1);
+    L_2 = map(L_2, 0, 90, 90, 0);
+
+    // R_1 = invertAngles(R_1);
+    R_2 = invertAngles(R_2);
+    
+    //board1.setPWM(4, 0, angleToPulse(L_1));
+    board1.setPWM(3, 0, angleToPulse(L_2));
+    board1.setPWM(5, 0, angleToPulse(L_3));
+    
+
+    //board1.setPWM(1, 0, angleToPulse(R_1));
+    board1.setPWM(0, 0, angleToPulse(R_2));
+    board1.setPWM(2, 0, angleToPulse(R_3));
+
+  }
+  
+
+  
+
+  // left hand connection to D13 onboard LED
+  /*
+  if (Serial.available() > 0)
+  {
+    int option = Serial.read();
+    if (option == 'a')
+    {
+      digitalWrite(13, HIGH);    
+    }
+    if (option == 'b')
+    {
+      digitalWrite(13, LOW);
+    }
+  }
+  */
+
+
+
+
+  /*
+  for (int i = 45; i <= 135; i = i+2 ) {
+      board1.setPWM(L_1, 0, angleToPulse(i));
+      Serial.println(i);
+      delay(100);
+  }
+  delay(500);
+  board1.setPWM(L_1, 0, 90);
+  delay(500);
+
+  for (int i = 45; i <= 135; i = i+2 ) {
+        board1.setPWM(L_2, 0, angleToPulse(i));
         Serial.println(i);
         delay(100);
-    }
-    board1.setPWM(channel, 0, 90);
-    delay(50);
   }
-  for(int i=0; i<16; i++) {
-  board1.setPWM(i, 0, angleToPulse(90));
-  }
-  return;
+  delay(500);
+  board1.setPWM(L_2, 0, 90);
+  delay(500);
+  */
+
+
   /*
   updateTimeDisplayIfDue();
   // Sweep all servos from 0 to 180 degrees
@@ -111,11 +182,7 @@ void loop() {
   */
 }
 
-void run(int channel) {
-  return;
-}
-
-
+/*
 int readAngle(int servoNumber)
 {
   while (true)
@@ -167,37 +234,86 @@ int readAngle(int servoNumber)
     return ang;
   }
 }
+*/
+int invertAngles(int ang) {
+  int inverted = map(ang, 0, 180, 180, 0);
+  return inverted;
+}
 
 int angleToPulse(int ang) {
   int pulse = map(ang, 0, 180, SERVOMIN, SERVOMAX);
   // Serial.print("Angle: "); Serial.print(ang);
   // Serial.print("Pulse: "); Serial.println(pulse);
-  return pulse;
+
+  // if not valid angle, return original value
+  if (ang > 180) {
+    return;
+  }
+  else if (ang < 0) {
+    return;
+  }
+  else {
+    return pulse;
+  }
+  return;
 }
 // ---------------- OLED time display (DS1307) ----------------
 void updateTimeDisplayIfDue() {
   unsigned long nowMs = millis();
+  DateTime now = rtc.now();
+
   if (nowMs - lastDisplayUpdateMs < 1000) return; // ~1 Hz
   lastDisplayUpdateMs = nowMs;
-  display.clearDisplay();
-  display.setCursor(48, 0);
-  display.setTextSize(1);
   // Uptime HH:MM:SS
+  /*
   unsigned long totalSeconds = nowMs / 1000UL;
   unsigned int hh = (totalSeconds / 3600UL) % 1000; // big uptime safe
   unsigned int mm = (totalSeconds / 60UL) % 60;
   unsigned int ss = totalSeconds % 60;
+  */
 
-  display.println(F("TIME"));
+  display.clearDisplay();
+  display.setCursor(8, 0);
+  display.setTextSize(1);
+  display.println(F("NINODUINO  RTC TIME"));
+
   display.setTextSize(2);
-  display.setCursor(16, 22);
-
+  display.setCursor(16, 18);
   char upStr[12];
-  snprintf(upStr, sizeof(upStr), "%02u:%02u:%02u", hh, mm, ss);
+  snprintf(upStr, sizeof(upStr), "%02u:%02u:%02u", now.hour(), now.minute(), now.second());
   display.println(upStr);
 
+  display.setCursor(96, 45);
+  display.setTextSize(0.5);
+  display.print(now.year());
+
+  display.setCursor(10, 45);
+  display.setTextSize(0.5);
+  display.println(now.day());
+
+  display.setCursor(26, 45);
+  display.setTextSize(0.5);
+  display.println(now.month());  
+
   display.setTextSize(1);
-  display.setCursor(0, 50);
+  display.setCursor(42, 40);
+  display.println(" /|_|\\ ");
+  display.setCursor(36, 50);
+
+  if (now.second() == 0) {          // cute blink animation
+    display.println(F(" |- o -| "));
+  }
+  else if (now.second() % 5 == 0) {
+    display.println(F(" |- w -| "));
+  }
+  else {
+    display.println(F(" |o w o| "));
+  }
+  
+  
+
+  display.drawRect(8, 10, 112, 28, WHITE);
+
 /*
   DateTime now = rtc.now();
 
