@@ -100,14 +100,15 @@ void loop() {
     // R_1 = invertAngles(R_1);
     R_2 = invertAngles(R_2);
     
-    //board1.setPWM(4, 0, angleToPulse(L_1));
-    board1.setPWM(3, 0, angleToPulse(L_2));
-    board1.setPWM(5, 0, angleToPulse(L_3));
+    // board1.setPWM(4, 0, angleToPulse(L_1));    // shoulder forward and back
+    board1.setPWM(3, 0, angleToPulse(L_2));       // elbow
+    board1.setPWM(5, 0, angleToPulse(L_3));       // shoulder up and down
     
 
-    //board1.setPWM(1, 0, angleToPulse(R_1));
-    board1.setPWM(0, 0, angleToPulse(R_2));
-    board1.setPWM(2, 0, angleToPulse(R_3));
+    // board1.setPWM(1, 0, angleToPulse(R_1));    // shoulder forward and back
+    board1.setPWM(0, 0, angleToPulse(R_2));       // elbow
+    board1.setPWM(2, 0, angleToPulse(R_3));       // shoulder up and down
+
 
   }
   
